@@ -1,0 +1,47 @@
+name: publish-docker
+
+on:
+  push:
+    branches: [ openjdk17 ]
+
+env:
+  DOCKER_IMAGE_NAME: suisrc/openjdk
+
+  QUAY_REGISTRY: quay.io
+  DOCKER_REGISTRY: docker.io
+
+  JDK_VERSION: jdk-17.0.3_7_openj9-0.32.0-debian
+
+
+jobs:
+  build-jdk-17-debian:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Build image
+        run: |
+          cd 17/jdk/debian && docker build -t image . -f openj9-slim-debian.Dockerfile
+
+      - name: Push docker image
+        run: |
+          echo "${{ secrets.DOCKER_TOKEN }}" | docker login $DOCKER_REGISTRY -u ${{ secrets.DOCKER_USER }} --password-stdin
+
+          IMAGE_ID=$DOCKER_REGISTRY/$DOCKER_IMAGE_NAME
+          echo IMAGE_ID=$IMAGE_ID
+          echo VERSION=$JDK_VERSION
+
+          docker tag image $IMAGE_ID:$JDK_VERSION
+          docker push $IMAGE_ID:$JDK_VERSION
+
+      - name: Push quay image
+        run: |
+          echo "${{ secrets.QUAY_TOKEN }}" | docker login $QUAY_REGISTRY -u ${{ secrets.QUAY_USER }} --password-stdin
+
+          IMAGE_ID=$QUAY_REGISTRY/$DOCKER_IMAGE_NAME
+          echo IMAGE_ID=$IMAGE_ID
+          echo VERSION=$JDK_VERSION
+
+          docker tag image $IMAGE_ID:$JDK_VERSION
+          docker push $IMAGE_ID:$JDK_VERSION
